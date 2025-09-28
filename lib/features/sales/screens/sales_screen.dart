@@ -10,6 +10,7 @@ import '../../inventory/providers/inventory_provider.dart';
 import '../../inventory/models/product_model.dart';
 import '../../customers/providers/customer_provider.dart';
 import '../../customers/models/customer_model.dart';
+import '../../../core/widgets/searchable_customer_field.dart';
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -29,6 +30,10 @@ class _SalesScreenState extends State<SalesScreen> {
   final _customerController = TextEditingController();
   Product? _selectedProduct;
   double _totalAmount = 0.0;
+
+  // Customer and Udhar state
+  bool _isUdharSelected = false;
+  Customer? _selectedCustomer;
 
   @override
   void initState() {
@@ -333,100 +338,88 @@ class _SalesScreenState extends State<SalesScreen> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Consumer<CustomerProvider>(
-                        builder: (context, customerProvider, child) {
-                          return Autocomplete<Customer>(
-                            displayStringForOption: (Customer customer) => customer.name,
-                            optionsBuilder: (TextEditingValue textEditingValue) {
-                              if (textEditingValue.text.isEmpty) {
-                                return customerProvider.customers.take(5);
-                              }
-                              return customerProvider.searchCustomers(textEditingValue.text);
-                            },
-                            onSelected: (Customer customer) {
-                              _customerController.text = customer.name;
-                            },
-                            fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                              // Sync with our main controller
-                              if (controller.text != _customerController.text) {
-                                controller.text = _customerController.text;
-                              }
-                              return TextFormField(
-                                controller: controller,
-                                focusNode: focusNode,
-                                onEditingComplete: onEditingComplete,
-                                onChanged: (value) {
-                                  _customerController.text = value;
-                                },
-                                decoration: const InputDecoration(
-                                  labelText: 'Customer Name (Optional)',
-                                  border: OutlineInputBorder(),
-                                  hintText: 'Type to search or add new customer',
-                                ),
-                              );
-                            },
-                            optionsViewBuilder: (context, onSelected, options) {
-                              return Align(
-                                alignment: Alignment.topLeft,
-                                child: Material(
-                                  elevation: 4.0,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(maxHeight: 200, maxWidth: 300),
-                                    child: ListView.builder(
-                                      padding: EdgeInsets.zero,
-                                      itemCount: options.length,
-                                      itemBuilder: (context, index) {
-                                        final customer = options.elementAt(index);
-                                        return ListTile(
-                                          dense: true,
-                                          leading: CircleAvatar(
-                                            radius: 16,
-                                            backgroundColor: customer.hasDebt
-                                                ? Colors.red
-                                                : customer.hasCredit
-                                                    ? Colors.green
-                                                    : Colors.grey,
-                                            child: Text(
-                                              customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ),
-                                          title: Text(
-                                            customer.name,
-                                            style: const TextStyle(fontWeight: FontWeight.w500),
-                                          ),
-                                          subtitle: customer.phoneNumber?.isNotEmpty ?? false
-                                              ? Text('📞 ${customer.phoneNumber}')
-                                              : null,
-                                          trailing: customer.creditBalance != 0
-                                              ? Text(
-                                                  '₹${customer.creditBalance.abs().toStringAsFixed(0)}',
-                                                  style: TextStyle(
-                                                    color: customer.hasDebt ? Colors.red : Colors.green,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                  ),
-                                                )
-                                              : null,
-                                          onTap: () => onSelected(customer),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          );
+                      child: SearchableCustomerField(
+                        controller: _customerController,
+                        labelText: _isUdharSelected ? 'Customer Name *' : 'Customer Name (Optional)',
+                        hintText: 'Type to search or add new customer',
+                        isRequired: _isUdharSelected,
+                        onCustomerSelected: (customer) {
+                          _selectedCustomer = customer;
                         },
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+
+                // Udhar checkbox
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _isUdharSelected,
+                      onChanged: (value) {
+                        setState(() {
+                          _isUdharSelected = value ?? false;
+                          if (!_isUdharSelected) {
+                            // If unchecking udhar, customer becomes optional again
+                          }
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isUdharSelected = !_isUdharSelected;
+                          });
+                        },
+                        child: RichText(
+                          text: TextSpan(
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            children: [
+                              const TextSpan(text: 'Keep for '),
+                              TextSpan(
+                                text: 'Udhar',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                              const TextSpan(text: ' (Add to customer credit)'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Show customer debt info if customer selected
+                if (_selectedCustomer != null && _selectedCustomer!.hasDebt)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange.shade700, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Customer owes: ₨${_selectedCustomer!.creditBalance.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 const SizedBox(height: 16),
 
                 // Action buttons
@@ -597,11 +590,9 @@ class _SalesScreenState extends State<SalesScreen> {
             children: [
               AppStyles.editButton(
                 onPressed: () => _editSale(sale),
-                tooltip: 'Edit Sale',
               ),
               AppStyles.deleteButton(
                 onPressed: () => _showDeleteConfirmation(context, sale),
-                tooltip: 'Delete Sale',
               ),
             ],
           ),
@@ -645,16 +636,33 @@ class _SalesScreenState extends State<SalesScreen> {
       _sellingPriceController.clear();
       _customerController.clear();
       _totalAmount = 0.0;
+      _isUdharSelected = false;
+      _selectedCustomer = null;
     });
   }
 
   Future<void> _handleSaleSubmit() async {
     if (!_saleFormKey.currentState!.validate() || _selectedProduct == null) return;
 
+    // Validate customer name if udhar is selected
+    if (_isUdharSelected && _customerController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Customer name is required for Udhar'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final quantity = int.parse(_quantityController.text);
     final sellingPrice = double.parse(_sellingPriceController.text);
     final totalAmount = quantity * sellingPrice;
     final profit = quantity * (sellingPrice - _selectedProduct!.purchasePrice);
+    final customerName = _customerController.text.trim();
+
+    final salesProvider = Provider.of<SalesProvider>(context, listen: false);
+    final customerProvider = Provider.of<CustomerProvider>(context, listen: false);
 
     final sale = Sale(
       id: _editingSale?.id ?? '',
@@ -665,36 +673,50 @@ class _SalesScreenState extends State<SalesScreen> {
       purchasePrice: _selectedProduct!.purchasePrice,
       totalAmount: totalAmount,
       profit: profit,
-      customerName: _customerController.text.trim().isEmpty
-          ? null
-          : _customerController.text.trim(),
+      customerName: customerName.isEmpty ? null : customerName,
       saleDate: DateTime.now(),
       createdAt: _editingSale?.createdAt ?? DateTime.now(),
     );
 
-    final salesProvider = Provider.of<SalesProvider>(context, listen: false);
-    bool success;
-
     // For now, we only support adding new sales
     // TODO: Implement updateSale in SalesProvider if editing is needed
-    success = await salesProvider.addSale(sale);
+    bool success = await salesProvider.addSale(sale);
+    if (!success) return;
 
-    if (success && mounted) {
-      _cancelSaleForm();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _editingSale == null
-                ? 'Sale recorded successfully'
-                : 'Sale updated successfully',
-          ),
-        ),
+    // Create customer if name provided (even without udhar)
+    if (customerName.isNotEmpty) {
+      await customerProvider.findOrCreateCustomer(customerName);
+    }
+
+    // Add udhar transaction if selected
+    if (_isUdharSelected && customerName.isNotEmpty) {
+      final udharSuccess = await customerProvider.addUdharTransaction(
+        customerName: customerName,
+        amount: totalAmount,
+        source: 'sales',
       );
-    } else if (mounted) {
+
+      if (!udharSuccess && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sale recorded but failed to create Udhar record'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (mounted) {
+      _cancelSaleForm();
+      final message = _isUdharSelected
+          ? 'Sale recorded: ₨${totalAmount.toStringAsFixed(0)} - Added to Udhar for $customerName'
+          : 'Sale recorded successfully';
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(salesProvider.errorMessage ?? 'An error occurred'),
-          backgroundColor: Colors.red,
+          content: Text(message),
+          backgroundColor: Colors.green,
         ),
       );
     }

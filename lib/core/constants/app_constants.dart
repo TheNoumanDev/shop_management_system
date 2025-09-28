@@ -13,6 +13,7 @@ class AppConstants {
   static const String photocopyServiceCollection = 'photocopy_service';
   static const String photocopyExpensesCollection = 'photocopy_expenses';
   static const String photocopyIncomeCollection = 'photocopy_income';
+  static const String dataTransferIncomeCollection = 'data_transfer_income';
   
   // General
   static const String categoriesCollection = 'categories';
@@ -40,7 +41,7 @@ class AppConstants {
   // Service Types (Fixed services - not dynamic)
   static const List<String> serviceTypes = [
     'Photocopy',
-    // Add more services here when needed
+    'Data Transfer',
   ];
   
   // Photocopy Service Constants
@@ -53,6 +54,21 @@ class AppConstants {
   ];
   
   static const List<int> photocopyRates = [10, 20, 30, 40, 50, 100, 150, 200, 300, 500]; // Available rates
+
+  // Data Transfer Service Constants
+  static const List<String> dataTransferTypes = [
+    'Movies',
+    'TV Series',
+    'Dramas',
+    'Cartoons',
+    'Music',
+    'Software',
+    'Games',
+    'Documents',
+    'Other',
+  ];
+
+  static const List<int> dataTransferRates = [50, 100, 150, 200, 250, 300, 500, 1000]; // Available rates per GB or per item
   
   // Currency
   static const String defaultCurrency = 'PKR';

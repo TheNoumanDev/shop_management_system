@@ -76,21 +76,53 @@ class SalesProvider extends ChangeNotifier {
     notifyListeners();
   }
   
-  // Load all sales
+  // Load sales for current month only (default)
   Future<void> loadSales() async {
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month, 1);
+    final nextMonth = DateTime(now.year, now.month + 1, 1);
+    await loadSalesForDateRange(currentMonth, nextMonth.subtract(const Duration(days: 1)));
+  }
+
+  // Load sales for specific date range
+  Future<void> loadSalesForDateRange(DateTime startDate, DateTime endDate) async {
     try {
       _setLoading(true);
       _setError(null);
-      
-      final querySnapshot = await _firebaseService.firestore
-          .collection(AppConstants.salesCollection)
-          .orderBy('saleDate', descending: true)
-          .get();
-      
-      _sales = querySnapshot.docs
-          .map((doc) => Sale.fromFirestore(doc))
-          .toList();
-      
+
+      List<Sale> allSales = [];
+      final start = DateTime(startDate.year, startDate.month, 1);
+      final end = DateTime(endDate.year, endDate.month + 1, 1);
+
+      // Load all months in the date range
+      for (DateTime date = start; date.isBefore(end); date = DateTime(date.year, date.month + 1, 1)) {
+        final monthYear = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+        try {
+          final querySnapshot = await _firebaseService.firestore
+              .collection('sales')
+              .doc(monthYear)
+              .collection('transactions')
+              .orderBy('saleDate', descending: true)
+              .get();
+
+          final monthSales = querySnapshot.docs
+              .map((doc) => Sale.fromFirestore(doc))
+              .where((sale) =>
+                sale.saleDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+                sale.saleDate.isBefore(endDate.add(const Duration(days: 1)))
+              )
+              .toList();
+
+          allSales.addAll(monthSales);
+        } catch (e) {
+          // If month doesn't exist, continue to next month
+          continue;
+        }
+      }
+
+      _sales = allSales;
+
     } catch (e) {
       _setError('Failed to load sales: $e');
     } finally {
@@ -98,16 +130,25 @@ class SalesProvider extends ChangeNotifier {
     }
   }
   
-  // Add new sale
+  // Add new sale (using month/year organization)
   Future<bool> addSale(Sale sale) async {
     try {
       _setLoading(true);
       _setError(null);
-      
+
+      final saleDate = sale.saleDate;
+      final monthYear = '${saleDate.year}-${saleDate.month.toString().padLeft(2, '0')}';
+
+      // Add sale to month/year collection
       await _firebaseService.firestore
-          .collection(AppConstants.salesCollection)
+          .collection('sales')
+          .doc(monthYear)
+          .collection('transactions')
           .add(sale.toFirestore());
-      
+
+      // Update monthly metadata
+      await _updateMonthlyMetadata(monthYear, sale);
+
       await loadSales(); // Refresh the list
       return true;
     } catch (e) {
@@ -115,6 +156,43 @@ class SalesProvider extends ChangeNotifier {
       return false;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  // Update monthly metadata for analytics
+  Future<void> _updateMonthlyMetadata(String monthYear, Sale sale) async {
+    try {
+      final monthDoc = _firebaseService.firestore
+          .collection('sales')
+          .doc(monthYear);
+
+      await _firebaseService.firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(monthDoc);
+
+        if (snapshot.exists) {
+          // Update existing metadata
+          final data = snapshot.data() as Map<String, dynamic>;
+          transaction.update(monthDoc, {
+            'totalSales': (data['totalSales'] ?? 0.0) + sale.totalAmount,
+            'totalProfit': (data['totalProfit'] ?? 0.0) + sale.profit,
+            'salesCount': (data['salesCount'] ?? 0) + 1,
+            'lastUpdated': Timestamp.fromDate(DateTime.now()),
+          });
+        } else {
+          // Create new metadata
+          transaction.set(monthDoc, {
+            'month': monthYear,
+            'totalSales': sale.totalAmount,
+            'totalProfit': sale.profit,
+            'salesCount': 1,
+            'createdAt': Timestamp.fromDate(DateTime.now()),
+            'lastUpdated': Timestamp.fromDate(DateTime.now()),
+          });
+        }
+      });
+    } catch (e) {
+      // Don't throw error for metadata updates
+      debugPrint('Failed to update monthly metadata: $e');
     }
   }
   

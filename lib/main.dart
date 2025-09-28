@@ -8,6 +8,7 @@ import 'core/constants/app_constants.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/inventory/providers/inventory_provider.dart';
 import 'features/services/providers/photocopy_provider.dart';
+import 'features/services/providers/data_transfer_provider.dart';
 import 'features/sales/providers/sales_provider.dart';
 import 'features/customers/providers/customer_provider.dart';
 import 'features/expenses/providers/expense_provider.dart';
@@ -33,22 +34,25 @@ class MyApp extends StatelessWidget {
           create: (_) => AuthProvider(),
         ),
         ChangeNotifierProvider(
-          create: (_) => InventoryProvider(),
+          create: (_) => InventoryProvider()..loadProducts(),
         ),
         ChangeNotifierProvider(
-          create: (_) => PhotocopyProvider(),
+          create: (_) => PhotocopyProvider()..loadAllData(),
         ),
         ChangeNotifierProvider(
-          create: (_) => SalesProvider(),
+          create: (_) => DataTransferProvider()..loadIncomes(),
         ),
         ChangeNotifierProvider(
-          create: (_) => CustomerProvider(),
+          create: (_) => SalesProvider()..loadSales(),
         ),
         ChangeNotifierProvider(
-          create: (_) => ExpenseProvider(),
+          create: (_) => CustomerProvider()..loadCustomers(),
         ),
         ChangeNotifierProvider(
-          create: (_) => CategoryProvider(),
+          create: (_) => ExpenseProvider()..loadExpenses(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => CategoryProvider()..loadCategories(),
         ),
       ],
       child: MaterialApp.router(

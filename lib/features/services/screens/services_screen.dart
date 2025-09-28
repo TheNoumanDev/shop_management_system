@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'photocopy_service_screen.dart';
+import 'data_transfer_service_screen.dart';
 
 class ServicesScreen extends StatelessWidget {
   const ServicesScreen({super.key});
@@ -42,7 +43,7 @@ class ServicesScreen extends StatelessWidget {
         // Services Tabs
         Expanded(
           child: DefaultTabController(
-            length: 1, // Only photocopy for now
+            length: 2,
             child: Column(
               children: [
                 const TabBar(
@@ -51,14 +52,17 @@ class ServicesScreen extends StatelessWidget {
                       icon: Icon(Icons.print),
                       text: 'Photocopy Service',
                     ),
-                    // Add more tabs here when you add more services
+                    Tab(
+                      icon: Icon(Icons.data_object),
+                      text: 'Data Transfer',
+                    ),
                   ],
                 ),
                 Expanded(
                   child: TabBarView(
                     children: [
                       const PhotocopyServiceScreen(),
-                      // Add more service screens here
+                      const DataTransferServiceScreen(),
                     ],
                   ),
                 ),

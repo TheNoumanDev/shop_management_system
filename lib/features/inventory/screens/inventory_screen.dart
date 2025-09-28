@@ -385,11 +385,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
               children: [
                 AppStyles.editButton(
                   onPressed: () => _populateFormForEdit(product),
-                  tooltip: 'Edit Product',
                 ),
                 AppStyles.deleteButton(
                   onPressed: () => _showDeleteConfirmation(context, product),
-                  tooltip: 'Delete Product',
                 ),
               ],
             ),

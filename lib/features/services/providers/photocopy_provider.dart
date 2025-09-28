@@ -89,16 +89,27 @@ class PhotocopyProvider extends ChangeNotifier {
     }
   }
   
-  // Add expense
+  // Add expense (using month/year organization)
   Future<bool> addExpense(PhotocopyExpense expense) async {
     try {
       _setLoading(true);
       _setError(null);
-      
+
+      final expenseDate = expense.date;
+      final monthYear = '${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}';
+
+      // Add expense to month/year collection
       await _firebaseService.firestore
-          .collection(AppConstants.photocopyExpensesCollection)
+          .collection('services')
+          .doc('photocopy')
+          .collection(monthYear)
+          .doc('expenses')
+          .collection('transactions')
           .add(expense.toFirestore());
-      
+
+      // Update monthly metadata
+      await _updateMonthlyExpenseMetadata(monthYear, expense);
+
       await loadExpenses();
       _calculateStats();
       return true;
@@ -110,16 +121,27 @@ class PhotocopyProvider extends ChangeNotifier {
     }
   }
   
-  // Add income
+  // Add income (using month/year organization)
   Future<bool> addIncome(PhotocopyIncome income) async {
     try {
       _setLoading(true);
       _setError(null);
-      
+
+      final incomeDate = income.date;
+      final monthYear = '${incomeDate.year}-${incomeDate.month.toString().padLeft(2, '0')}';
+
+      // Add income to month/year collection
       await _firebaseService.firestore
-          .collection(AppConstants.photocopyIncomeCollection)
+          .collection('services')
+          .doc('photocopy')
+          .collection(monthYear)
+          .doc('income')
+          .collection('transactions')
           .add(income.toFirestore());
-      
+
+      // Update monthly metadata
+      await _updateMonthlyIncomeMetadata(monthYear, income);
+
       await loadIncomes();
       _calculateStats();
       return true;
@@ -319,6 +341,80 @@ class PhotocopyProvider extends ChangeNotifier {
     // Add incomes
     for (final income in dummyIncomes) {
       await addIncome(income);
+    }
+  }
+
+  // Update monthly expense metadata for analytics
+  Future<void> _updateMonthlyExpenseMetadata(String monthYear, PhotocopyExpense expense) async {
+    try {
+      final monthDoc = _firebaseService.firestore
+          .collection('services')
+          .doc('photocopy')
+          .collection(monthYear)
+          .doc('expenses');
+
+      await _firebaseService.firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(monthDoc);
+
+        if (snapshot.exists) {
+          // Update existing metadata
+          final data = snapshot.data() as Map<String, dynamic>;
+          transaction.update(monthDoc, {
+            'totalExpenses': (data['totalExpenses'] ?? 0.0) + expense.amount,
+            'expenseCount': (data['expenseCount'] ?? 0) + 1,
+            'lastUpdated': Timestamp.fromDate(DateTime.now()),
+          });
+        } else {
+          // Create new metadata
+          transaction.set(monthDoc, {
+            'month': monthYear,
+            'totalExpenses': expense.amount,
+            'expenseCount': 1,
+            'createdAt': Timestamp.fromDate(DateTime.now()),
+            'lastUpdated': Timestamp.fromDate(DateTime.now()),
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Failed to update monthly expense metadata: $e');
+    }
+  }
+
+  // Update monthly income metadata for analytics
+  Future<void> _updateMonthlyIncomeMetadata(String monthYear, PhotocopyIncome income) async {
+    try {
+      final monthDoc = _firebaseService.firestore
+          .collection('services')
+          .doc('photocopy')
+          .collection(monthYear)
+          .doc('income');
+
+      await _firebaseService.firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(monthDoc);
+
+        if (snapshot.exists) {
+          // Update existing metadata
+          final data = snapshot.data() as Map<String, dynamic>;
+          transaction.update(monthDoc, {
+            'totalIncome': (data['totalIncome'] ?? 0.0) + income.totalAmount,
+            'totalCopies': (data['totalCopies'] ?? 0) + income.copies,
+            'incomeCount': (data['incomeCount'] ?? 0) + 1,
+            'lastUpdated': Timestamp.fromDate(DateTime.now()),
+          });
+        } else {
+          // Create new metadata
+          transaction.set(monthDoc, {
+            'month': monthYear,
+            'totalIncome': income.totalAmount,
+            'totalCopies': income.copies,
+            'incomeCount': 1,
+            'createdAt': Timestamp.fromDate(DateTime.now()),
+            'lastUpdated': Timestamp.fromDate(DateTime.now()),
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Failed to update monthly income metadata: $e');
     }
   }
 }

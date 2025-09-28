@@ -97,7 +97,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             Expanded(
                               child: _buildStatCard(
                                 'This Month',
-                                '₹${provider.currentMonthTotal.toStringAsFixed(0)}',
+                                '₨${provider.currentMonthTotal.toStringAsFixed(0)}',
                                 Colors.red,
                                 Icons.calendar_month,
                               ),
@@ -116,8 +116,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               child: _buildStatCard(
                                 'Avg per Entry',
                                 currentMonthExpenses.isNotEmpty
-                                    ? '₹${(provider.currentMonthTotal / currentMonthExpenses.length).toStringAsFixed(0)}'
-                                    : '₹0',
+                                    ? '₨${(provider.currentMonthTotal / currentMonthExpenses.length).toStringAsFixed(0)}'
+                                    : '₨0',
                                 Colors.green,
                                 Icons.analytics,
                               ),
@@ -307,7 +307,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _amountController,
-                    decoration: AppStyles.standardInputDecoration('Amount *', prefixText: '₹'),
+                    decoration: AppStyles.standardInputDecoration('Amount *', prefixText: '₨'),
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value?.trim().isEmpty ?? true) return 'Amount is required';
@@ -468,7 +468,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         ),
         DataCell(
           Text(
-            '₹${expense.amount.toStringAsFixed(0)}',
+            '₨${expense.amount.toStringAsFixed(0)}',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.red,

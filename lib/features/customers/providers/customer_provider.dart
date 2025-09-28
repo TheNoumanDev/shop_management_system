@@ -63,12 +63,13 @@ class CustomerProvider with ChangeNotifier {
     }
   }
 
-  // Load credit transactions for a specific customer
+  // Load credit transactions for a specific customer (using sub-collection)
   Future<void> loadCreditTransactions(String customerId) async {
     try {
       final querySnapshot = await _firestore
+          .collection('customers')
+          .doc(customerId)
           .collection('credit_transactions')
-          .where('customerId', isEqualTo: customerId)
           .orderBy('transactionDate', descending: true)
           .get();
 
@@ -148,11 +149,13 @@ class CustomerProvider with ChangeNotifier {
     }
   }
 
-  // Add credit transaction
+  // Add credit transaction (using sub-collection under customer)
   Future<bool> addCreditTransaction(CreditTransaction transaction) async {
     try {
-      // Add transaction to database
+      // Add transaction to database as sub-collection under customer
       final docRef = await _firestore
+          .collection('customers')
+          .doc(transaction.customerId)
           .collection('credit_transactions')
           .add(transaction.toFirestore());
 
@@ -225,6 +228,47 @@ class CustomerProvider with ChangeNotifier {
       return _customers.lastWhere((c) => c.name == name.trim());
     }
     return null;
+  }
+
+  // Add udhar transaction and update customer balance
+  Future<bool> addUdharTransaction({
+    required String customerName,
+    required double amount,
+    required String source, // 'photocopy', 'data_transfer', 'sales'
+    String? phoneNumber,
+  }) async {
+    try {
+      // Find or create customer
+      final customer = await findOrCreateCustomer(customerName, phoneNumber: phoneNumber);
+      if (customer == null) return false;
+
+      // Create credit transaction (customer owes us money)
+      final transaction = CreditTransaction(
+        id: '',
+        customerId: customer.id,
+        customerName: customer.name,
+        type: TransactionType.given, // We gave service to customer (they owe us)
+        amount: amount,
+        note: 'Income from $source service',
+        transactionDate: DateTime.now(),
+        createdAt: DateTime.now(),
+      );
+
+      // Add transaction
+      final transactionSuccess = await addCreditTransaction(transaction);
+      if (!transactionSuccess) return false;
+
+      // Update customer balance (increase debt)
+      final updatedCustomer = customer.copyWith(
+        creditBalance: customer.creditBalance + amount,
+        updatedAt: DateTime.now(),
+      );
+
+      return await updateCustomer(updatedCustomer);
+    } catch (e) {
+      _setError('Failed to add udhar transaction: $e');
+      return false;
+    }
   }
 
   // Helper methods

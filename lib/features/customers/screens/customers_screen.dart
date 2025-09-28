@@ -105,7 +105,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Total Debt',
-                            '₹${provider.totalDebtAmount.toStringAsFixed(0)}',
+                            '₨${provider.totalDebtAmount.toStringAsFixed(0)}',
                             Colors.red,
                             Icons.money_off,
                           ),
@@ -114,7 +114,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Total Credit',
-                            '₹${provider.totalCreditAmount.toStringAsFixed(0)}',
+                            '₨${provider.totalCreditAmount.toStringAsFixed(0)}',
                             Colors.green,
                             Icons.account_balance_wallet,
                           ),
@@ -451,8 +451,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   String _getBalanceText(double balance) {
-    if (balance == 0) return '₹0';
-    return '₹${balance.abs().toStringAsFixed(0)}';
+    if (balance == 0) return '₨0';
+    return '₨${balance.abs().toStringAsFixed(0)}';
   }
 
   String _getBalanceLabel(double balance) {

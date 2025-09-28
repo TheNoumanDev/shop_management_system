@@ -107,7 +107,7 @@ class _UdharScreenState extends State<UdharScreen> {
               Expanded(
                 child: _buildStatCard(
                   'Total Debt',
-                  '₹${provider.totalDebtAmount.toStringAsFixed(0)}',
+                  '₨${provider.totalDebtAmount.toStringAsFixed(0)}',
                   Colors.red,
                   Icons.trending_up,
                 ),
@@ -116,7 +116,7 @@ class _UdharScreenState extends State<UdharScreen> {
               Expanded(
                 child: _buildStatCard(
                   'Total Credit',
-                  '₹${provider.totalCreditAmount.toStringAsFixed(0)}',
+                  '₨${provider.totalCreditAmount.toStringAsFixed(0)}',
                   Colors.green,
                   Icons.trending_down,
                 ),
@@ -125,7 +125,7 @@ class _UdharScreenState extends State<UdharScreen> {
               Expanded(
                 child: _buildStatCard(
                   'Net Balance',
-                  '₹${(provider.totalDebtAmount - provider.totalCreditAmount.abs()).toStringAsFixed(0)}',
+                  '₨${(provider.totalDebtAmount - provider.totalCreditAmount.abs()).toStringAsFixed(0)}',
                   provider.totalDebtAmount > provider.totalCreditAmount.abs() ? Colors.green : Colors.red,
                   Icons.account_balance,
                 ),
@@ -298,7 +298,7 @@ class _UdharScreenState extends State<UdharScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _transactionAmountController,
-                        decoration: AppStyles.standardInputDecoration('Amount *', prefixText: '₹'),
+                        decoration: AppStyles.standardInputDecoration('Amount *', prefixText: '₨'),
                         keyboardType: TextInputType.number,
                         validator: (value) {
                           if (value?.trim().isEmpty ?? true) return 'Required';
@@ -649,8 +649,8 @@ class _UdharScreenState extends State<UdharScreen> {
   }
 
   String _getBalanceText(double balance) {
-    if (balance == 0) return '₹0';
-    return '₹${balance.abs().toStringAsFixed(0)}';
+    if (balance == 0) return '₨0';
+    return '₨${balance.abs().toStringAsFixed(0)}';
   }
 
   String _getBalanceLabel(double balance) {
@@ -749,7 +749,7 @@ class _UdharScreenState extends State<UdharScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Amount *',
                   border: OutlineInputBorder(),
-                  prefixText: '₹',
+                  prefixText: '₨',
                 ),
                 keyboardType: TextInputType.number,
                 validator: (value) {

@@ -64,6 +64,9 @@ dependencies:
   # Forms and Validation
   form_field_validator: ^1.1.0
 
+  # Charts and Graphs
+  fl_chart: ^0.69.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

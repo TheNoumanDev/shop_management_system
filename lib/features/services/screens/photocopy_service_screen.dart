@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_styles.dart';
+import '../../../core/widgets/searchable_customer_field.dart';
 import '../providers/photocopy_provider.dart';
 import '../models/photocopy_models.dart';
 import '../../customers/providers/customer_provider.dart';
@@ -21,6 +22,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
 
   // Income form controllers
   final _customAmountController = TextEditingController();
+  final _customerController = TextEditingController();
 
   // Expense form controllers
   final _expenseTypeController = TextEditingController();
@@ -37,6 +39,10 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
   // Income type state
   String _selectedIncomeType = 'B/W'; // Default to B/W
   final List<String> _incomeTypes = ['B/W', 'Color', 'Sticker'];
+
+  // Customer and Udhar state
+  bool _isUdharSelected = false;
+  Customer? _selectedCustomer;
 
   @override
   void initState() {
@@ -83,6 +89,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
   @override
   void dispose() {
     _customAmountController.dispose();
+    _customerController.dispose();
     _expenseTypeController.dispose();
     _expenseAmountController.dispose();
     _expenseDescriptionController.dispose();
@@ -154,7 +161,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Total Income',
-                            '₹${_getFilteredStats(provider).totalIncome.toStringAsFixed(0)}',
+                            '₨${_getFilteredStats(provider).totalIncome.toStringAsFixed(0)}',
                             Colors.green,
                             Icons.trending_up,
                           ),
@@ -163,7 +170,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Total Expenses',
-                            '₹${_getFilteredStats(provider).totalExpenses.toStringAsFixed(0)}',
+                            '₨${_getFilteredStats(provider).totalExpenses.toStringAsFixed(0)}',
                             Colors.red,
                             Icons.trending_down,
                           ),
@@ -172,7 +179,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Net Profit',
-                            '₹${_getFilteredStats(provider).netProfit.toStringAsFixed(0)}',
+                            '₨${_getFilteredStats(provider).netProfit.toStringAsFixed(0)}',
                             _getFilteredStats(provider).netProfit >= 0 ? Colors.blue : Colors.red,
                             Icons.account_balance_wallet,
                           ),
@@ -338,7 +345,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
               padding: const EdgeInsets.only(right: 6),
               child: ElevatedButton(
                 onPressed: () => _addQuickIncomeByAmount(amount.toDouble()),
-                child: Text('₹$amount'),
+                child: Text('₨$amount'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -358,7 +365,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
               padding: const EdgeInsets.only(right: 6),
               child: ElevatedButton(
                 onPressed: () => _addQuickIncomeByAmount(amount.toDouble()),
-                child: Text('₹$amount'),
+                child: Text('₨$amount'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -389,30 +396,45 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Custom amount field and button
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextFormField(
-                controller: _customAmountController,
-                decoration: AppStyles.standardInputDecoration('Custom Amount'),
-                keyboardType: TextInputType.number,
-              ),
+        // Custom amount field
+        TextFormField(
+          controller: _customAmountController,
+          decoration: AppStyles.standardInputDecoration('Custom Amount'),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 12),
+
+        // Customer and Udhar section
+        UdharCustomerSection(
+          customerController: _customerController,
+          isUdharSelected: _isUdharSelected,
+          onUdharChanged: (value) {
+            setState(() {
+              _isUdharSelected = value;
+              if (!value) {
+                _customerController.clear();
+                _selectedCustomer = null;
+              }
+            });
+          },
+          onCustomerSelected: (customer) {
+            _selectedCustomer = customer;
+          },
+        ),
+        const SizedBox(height: 12),
+
+        // Add button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _addCustomAmount,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 15),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _addCustomAmount,
-                child: const Text('Add'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                ),
-              ),
-            ),
-          ],
+            child: const Text('Add Income'),
+          ),
         ),
       ],
     );
@@ -558,14 +580,14 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       subtitle: Text(
-                        'Type: ${income.incomeType ?? 'B/W'} • Amount: ₹${income.totalAmount.toStringAsFixed(0)}\n'
+                        'Type: ${income.incomeType ?? 'B/W'} • Amount: ₨${income.totalAmount.toStringAsFixed(0)}\n'
                         '${DateFormat('MMM dd, yyyy').format(income.date)}',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '₹${income.totalAmount.toStringAsFixed(0)}',
+                            '₨${income.totalAmount.toStringAsFixed(0)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.green,
@@ -575,7 +597,6 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red, size: 18),
                             onPressed: () => _deleteIncome(income.id),
-                            tooltip: 'Delete',
                           ),
                         ],
                       ),
@@ -644,7 +665,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '₹${expense.amount.toStringAsFixed(0)}',
+                            '₨${expense.amount.toStringAsFixed(0)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.red,
@@ -654,7 +675,6 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red, size: 18),
                             onPressed: () => _deleteExpense(expense.id),
-                            tooltip: 'Delete',
                           ),
                         ],
                       ),
@@ -697,7 +717,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Income added: ₹${amount.toStringAsFixed(0)} (B/W)'),
+          content: Text('Income added: ₨${amount.toStringAsFixed(0)} (B/W)'),
           backgroundColor: Colors.green,
         ),
       );
@@ -728,27 +748,75 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
       return;
     }
 
+    // Validate customer name if udhar is selected
+    if (_isUdharSelected && _customerController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Customer name is required for Udhar'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final customerName = _customerController.text.trim();
+
+    // Add income
     final income = PhotocopyIncome(
       id: '',
       copies: 1, // We don't track copies anymore, just amount
       ratePerCopy: amount,
       totalAmount: amount,
+      customerName: customerName.isNotEmpty ? customerName : null,
       date: DateTime.now(),
       createdAt: DateTime.now(),
       incomeType: _selectedIncomeType,
     );
 
-    final success = await context.read<PhotocopyProvider>().addIncome(income);
-    if (success && mounted) {
+    final photocopyProvider = context.read<PhotocopyProvider>();
+    final customerProvider = context.read<CustomerProvider>();
+
+    final success = await photocopyProvider.addIncome(income);
+    if (!success) return;
+
+    // Add udhar transaction if selected
+    if (_isUdharSelected && customerName.isNotEmpty) {
+      final udharSuccess = await customerProvider.addUdharTransaction(
+        customerName: customerName,
+        amount: amount,
+        source: 'photocopy',
+      );
+
+      if (!udharSuccess && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Income added but failed to create Udhar record'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (mounted) {
+      final message = _isUdharSelected
+          ? 'Income added: ₨${amount.toStringAsFixed(0)} ($_selectedIncomeType) - Added to Udhar for $customerName'
+          : 'Income added: ₨${amount.toStringAsFixed(0)} ($_selectedIncomeType)';
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Income added: ₹${amount.toStringAsFixed(0)} ($_selectedIncomeType)'),
+          content: Text(message),
           backgroundColor: Colors.green,
         ),
       );
       _initializeMonthFilter(); // Refresh month filter
+      _customAmountController.clear();
+      _customerController.clear();
+      setState(() {
+        _isUdharSelected = false;
+        _selectedCustomer = null;
+      });
     }
-    _customAmountController.clear();
   }
 
 

@@ -367,7 +367,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                       labelText: 'Amount *',
                       border: OutlineInputBorder(),
                       isDense: true,
-                      prefixText: '₹',
+                      prefixText: '₨',
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
@@ -501,8 +501,8 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
   }
 
   String _getBalanceText(double balance) {
-    if (balance == 0) return '₹0';
-    return '₹${balance.abs().toStringAsFixed(0)}';
+    if (balance == 0) return '₨0';
+    return '₨${balance.abs().toStringAsFixed(0)}';
   }
 
   String _getBalanceLabel(double balance) {

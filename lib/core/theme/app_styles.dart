@@ -163,12 +163,12 @@ class AppStyles {
   // Standard Edit Button
   static Widget editButton({
     required VoidCallback onPressed,
-    String tooltip = 'Edit',
+    String? tooltip,
   }) {
     return IconButton(
       icon: const Icon(Icons.edit, size: 18),
       onPressed: onPressed,
-      tooltip: tooltip,
+      tooltip: tooltip, // Only shows tooltip if explicitly provided
       constraints: actionButtonConstraints,
     );
   }
@@ -176,12 +176,12 @@ class AppStyles {
   // Standard Delete Button
   static Widget deleteButton({
     required VoidCallback onPressed,
-    String tooltip = 'Delete',
+    String? tooltip,
   }) {
     return IconButton(
       icon: const Icon(Icons.delete, color: Colors.red, size: 18),
       onPressed: onPressed,
-      tooltip: tooltip,
+      tooltip: tooltip, // Only shows tooltip if explicitly provided
       constraints: actionButtonConstraints,
     );
   }
@@ -189,12 +189,12 @@ class AppStyles {
   // Standard View Button
   static Widget viewButton({
     required VoidCallback onPressed,
-    String tooltip = 'View Details',
+    String? tooltip,
   }) {
     return IconButton(
       icon: const Icon(Icons.visibility, size: 18),
       onPressed: onPressed,
-      tooltip: tooltip,
+      tooltip: tooltip, // Only shows tooltip if explicitly provided
       constraints: actionButtonConstraints,
     );
   }

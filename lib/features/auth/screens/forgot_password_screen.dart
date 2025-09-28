@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 
 import '../../../core/constants/routes.dart';
-import '../../../core/constants/app_constants.dart';
 import '../providers/auth_provider.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {

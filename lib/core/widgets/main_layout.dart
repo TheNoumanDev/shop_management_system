@@ -150,7 +150,7 @@ class MainLayout extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [
                   Theme.of(context).primaryColor,
-                  Theme.of(context).primaryColor.withOpacity(0.8),
+                  Theme.of(context).primaryColor.withValues(alpha: 0.8),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -180,7 +180,7 @@ class MainLayout extends StatelessWidget {
                       Text(
                         'Business Management',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                       ),
                     ],
@@ -314,7 +314,7 @@ class MainLayout extends StatelessWidget {
         ),
       ),
       selected: isSelected,
-      selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.8),
+      selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.8),
       onTap: () {
         context.go(route);
       },

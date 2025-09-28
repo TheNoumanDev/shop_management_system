@@ -837,7 +837,7 @@ class _UdharScreenState extends State<UdharScreen> {
           ElevatedButton(
             onPressed: () async {
               final navigator = Navigator.of(context);
-              final provider = context.read<CustomerProvider>();
+              // final provider = context.read<CustomerProvider>();
               final messenger = ScaffoldMessenger.of(context);
               navigator.pop();
               // TODO: Implement delete customer functionality

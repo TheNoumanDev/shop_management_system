@@ -8,7 +8,7 @@ import '../../../core/widgets/searchable_customer_field.dart';
 import '../providers/data_transfer_provider.dart';
 import '../models/data_transfer_models.dart';
 import '../../customers/providers/customer_provider.dart';
-import '../../customers/models/customer_model.dart';
+// import '../../customers/models/customer_model.dart'; // TODO: Re-enable when customer selection is implemented
 
 class DataTransferServiceScreen extends StatefulWidget {
   const DataTransferServiceScreen({super.key});
@@ -21,7 +21,7 @@ class _DataTransferServiceScreenState extends State<DataTransferServiceScreen> {
   final _customAmountController = TextEditingController();
   final _customerNameController = TextEditingController();
   bool _isUdharSelected = false;
-  Customer? _selectedCustomer;
+  // Customer? _selectedCustomer; // TODO: Implement customer selection functionality
 
   @override
   void initState() {
@@ -256,7 +256,7 @@ class _DataTransferServiceScreenState extends State<DataTransferServiceScreen> {
             isRequired: _isUdharSelected,
             onCustomerSelected: (customer) {
               setState(() {
-                _selectedCustomer = customer;
+                // _selectedCustomer = customer; // TODO: Implement customer selection
               });
             },
           ),
@@ -433,7 +433,7 @@ class _DataTransferServiceScreenState extends State<DataTransferServiceScreen> {
         _customAmountController.clear();
         _customerNameController.clear();
         _isUdharSelected = false;
-        _selectedCustomer = null;
+        // _selectedCustomer = null; // TODO: Implement customer selection
       });
 
       ScaffoldMessenger.of(context).showSnackBar(

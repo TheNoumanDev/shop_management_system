@@ -17,7 +17,7 @@ class PhotocopyServiceScreen extends StatefulWidget {
 }
 
 class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
-  final _incomeFormKey = GlobalKey<FormState>();
+  // final _incomeFormKey = GlobalKey<FormState>(); // TODO: Implement form validation
   final _expenseFormKey = GlobalKey<FormState>();
 
   // Income form controllers
@@ -29,7 +29,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
   final _expenseAmountController = TextEditingController();
   final _expenseDescriptionController = TextEditingController();
 
-  DateTime _selectedIncomeDate = DateTime.now();
+  // DateTime _selectedIncomeDate = DateTime.now(); // TODO: Implement date selection
   DateTime _selectedExpenseDate = DateTime.now();
 
   // Month filtering state
@@ -42,7 +42,7 @@ class _PhotocopyServiceScreenState extends State<PhotocopyServiceScreen> {
 
   // Customer and Udhar state
   bool _isUdharSelected = false;
-  Customer? _selectedCustomer;
+  Customer? _selectedCustomer; // ignore: unused_field
 
   @override
   void initState() {

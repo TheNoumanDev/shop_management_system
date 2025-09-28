@@ -62,7 +62,7 @@ jobs:
 
       - name: Build Flutter web
         run: |
-          flutter build web --release --web-renderer html --base-href "/shop_management_system/"
+          flutter build web --release --base-href "/shop_management_system/"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

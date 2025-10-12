@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/services/firebase_service.dart';
-import '../../../core/constants/app_constants.dart';
 import '../models/data_transfer_models.dart';
 
 class DataTransferProvider extends ChangeNotifier {
@@ -12,12 +11,14 @@ class DataTransferProvider extends ChangeNotifier {
   DataTransferStats _stats = DataTransferStats.empty();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isDataLoaded = false;  // Cache flag to avoid reloading
 
   // Getters
   List<DataTransferIncome> get incomes => _incomes;
   DataTransferStats get stats => _stats;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isDataLoaded => _isDataLoaded;
 
   // Get total income
   double get totalIncome => _incomes.fold<double>(0, (total, income) => total + income.totalAmount);
@@ -37,26 +38,59 @@ class DataTransferProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Load all data
-  Future<void> loadAllData() async {
-    await loadIncomes();
-    _calculateStats();
+  // Force refresh data
+  Future<void> refreshData() async {
+    await loadAllData(forceRefresh: true);
   }
 
-  // Load incomes
+  // Load all data (with caching)
+  Future<void> loadAllData({bool forceRefresh = false}) async {
+    // Skip if already loaded unless force refresh
+    if (_isDataLoaded && !forceRefresh) {
+      return;
+    }
+
+    await loadIncomes();
+    _calculateStats();
+    _isDataLoaded = true;
+  }
+
+  // Load incomes (from month/year organization)
   Future<void> loadIncomes() async {
     try {
       _setLoading(true);
       _setError(null);
 
-      final querySnapshot = await _firebaseService.firestore
-          .collection(AppConstants.dataTransferIncomeCollection)
-          .orderBy('date', descending: true)
-          .get();
+      List<DataTransferIncome> allIncomes = [];
+      final now = DateTime.now();
 
-      _incomes = querySnapshot.docs
-          .map((doc) => DataTransferIncome.fromFirestore(doc))
-          .toList();
+      // Load last 12 months of income data
+      for (int i = 0; i < 12; i++) {
+        final date = DateTime(now.year, now.month - i, 1);
+        final monthYear = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+        try {
+          final querySnapshot = await _firebaseService.firestore
+              .collection('services')
+              .doc('data_transfer')
+              .collection(monthYear)
+              .doc('income')
+              .collection('transactions')
+              .orderBy('date', descending: true)
+              .get();
+
+          final monthIncomes = querySnapshot.docs
+              .map((doc) => DataTransferIncome.fromFirestore(doc))
+              .toList();
+
+          allIncomes.addAll(monthIncomes);
+        } catch (e) {
+          // If month doesn't exist, continue to next month
+          continue;
+        }
+      }
+
+      _incomes = allIncomes;
 
     } catch (e) {
       _setError('Failed to load data transfer records: $e');
@@ -75,7 +109,7 @@ class DataTransferProvider extends ChangeNotifier {
       final monthYear = '${incomeDate.year}-${incomeDate.month.toString().padLeft(2, '0')}';
 
       // Add income to month/year collection
-      await _firebaseService.firestore
+      final docRef = await _firebaseService.firestore
           .collection('services')
           .doc('data_transfer')
           .collection(monthYear)
@@ -86,8 +120,17 @@ class DataTransferProvider extends ChangeNotifier {
       // Update monthly metadata
       await _updateMonthlyMetadata(monthYear, income);
 
-      await loadIncomes();
+      // Add to local list instead of reloading
+      final newIncome = DataTransferIncome(
+        id: docRef.id,
+        totalAmount: income.totalAmount,
+        customerName: income.customerName,
+        date: income.date,
+        createdAt: income.createdAt,
+      );
+      _incomes.insert(0, newIncome);
       _calculateStats();
+      notifyListeners();
       return true;
     } catch (e) {
       _setError('Failed to add data transfer record: $e');
@@ -103,13 +146,25 @@ class DataTransferProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
+      final incomeDate = income.date;
+      final monthYear = '${incomeDate.year}-${incomeDate.month.toString().padLeft(2, '0')}';
+
       await _firebaseService.firestore
-          .collection(AppConstants.dataTransferIncomeCollection)
+          .collection('services')
+          .doc('data_transfer')
+          .collection(monthYear)
+          .doc('income')
+          .collection('transactions')
           .doc(income.id)
           .update(income.toFirestore());
 
-      await loadIncomes();
-      _calculateStats();
+      // Update local list instead of reloading
+      final index = _incomes.indexWhere((i) => i.id == income.id);
+      if (index != -1) {
+        _incomes[index] = income;
+        _calculateStats();
+        notifyListeners();
+      }
       return true;
     } catch (e) {
       _setError('Failed to update data transfer record: $e');
@@ -125,13 +180,24 @@ class DataTransferProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
+      // Find the income in the list to get its date
+      final income = _incomes.firstWhere((i) => i.id == incomeId);
+      final incomeDate = income.date;
+      final monthYear = '${incomeDate.year}-${incomeDate.month.toString().padLeft(2, '0')}';
+
       await _firebaseService.firestore
-          .collection(AppConstants.dataTransferIncomeCollection)
+          .collection('services')
+          .doc('data_transfer')
+          .collection(monthYear)
+          .doc('income')
+          .collection('transactions')
           .doc(incomeId)
           .delete();
 
-      await loadIncomes();
+      // Remove from local list instead of reloading
+      _incomes.removeWhere((i) => i.id == incomeId);
       _calculateStats();
+      notifyListeners();
       return true;
     } catch (e) {
       _setError('Failed to delete data transfer record: $e');

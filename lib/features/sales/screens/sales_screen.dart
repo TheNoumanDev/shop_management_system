@@ -619,13 +619,40 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   void _editSale(Sale sale) {
-    // TODO: Implement edit functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Edit functionality coming soon'),
-        backgroundColor: Colors.orange,
+    // Find the product in inventory to pre-fill the form
+    final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+    final product = inventoryProvider.products.firstWhere(
+      (p) => p.id == sale.productId,
+      orElse: () => Product(
+        id: sale.productId,
+        name: sale.productName,
+        category: 'Unknown',
+        purchasePrice: sale.purchasePrice,
+        sellingPrice: sale.sellingPrice,
+        currentStock: 0,
+        minStockLevel: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       ),
     );
+
+    setState(() {
+      _editingSale = sale;
+      _selectedProduct = product;
+      _quantityController.text = sale.quantity.toString();
+      _sellingPriceController.text = sale.sellingPrice.toStringAsFixed(0);
+      _customerController.text = sale.customerName ?? '';
+      _updateTotalAmount();
+    });
+
+    // Scroll to top to show the form
+    if (mounted) {
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   void _cancelSaleForm() {
@@ -663,6 +690,7 @@ class _SalesScreenState extends State<SalesScreen> {
 
     final salesProvider = Provider.of<SalesProvider>(context, listen: false);
     final customerProvider = Provider.of<CustomerProvider>(context, listen: false);
+    final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
 
     final sale = Sale(
       id: _editingSale?.id ?? '',
@@ -674,14 +702,49 @@ class _SalesScreenState extends State<SalesScreen> {
       totalAmount: totalAmount,
       profit: profit,
       customerName: customerName.isEmpty ? null : customerName,
-      saleDate: DateTime.now(),
+      saleDate: _editingSale?.saleDate ?? DateTime.now(),
       createdAt: _editingSale?.createdAt ?? DateTime.now(),
     );
 
-    // For now, we only support adding new sales
-    // TODO: Implement updateSale in SalesProvider if editing is needed
-    bool success = await salesProvider.addSale(sale);
-    if (!success) return;
+    bool success;
+    if (_editingSale == null) {
+      // Adding new sale
+      success = await salesProvider.addSale(sale);
+      if (!success) return;
+
+      // Deduct stock from inventory for new sale
+      final newStock = _selectedProduct!.currentStock - quantity;
+      final stockUpdateSuccess = await inventoryProvider.updateStock(_selectedProduct!.id, newStock);
+      if (!stockUpdateSuccess && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sale recorded but failed to update stock'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } else {
+      // Updating existing sale
+      final oldQuantity = _editingSale!.quantity;
+      final quantityDifference = quantity - oldQuantity;
+
+      success = await salesProvider.updateSale(sale);
+      if (!success) return;
+
+      // Adjust stock based on quantity change
+      if (quantityDifference != 0) {
+        final newStock = _selectedProduct!.currentStock - quantityDifference;
+        final stockUpdateSuccess = await inventoryProvider.updateStock(_selectedProduct!.id, newStock);
+        if (!stockUpdateSuccess && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sale updated but failed to adjust stock'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    }
 
     // Create customer if name provided (even without udhar)
     if (customerName.isNotEmpty) {
@@ -708,10 +771,17 @@ class _SalesScreenState extends State<SalesScreen> {
     }
 
     if (mounted) {
+      final isEditing = _editingSale != null;
       _cancelSaleForm();
-      final message = _isUdharSelected
-          ? 'Sale recorded: ₨${totalAmount.toStringAsFixed(0)} - Added to Udhar for $customerName'
-          : 'Sale recorded successfully';
+
+      String message;
+      if (isEditing) {
+        message = 'Sale updated successfully';
+      } else {
+        message = _isUdharSelected
+            ? 'Sale recorded: ₨${totalAmount.toStringAsFixed(0)} - Added to Udhar for $customerName'
+            : 'Sale recorded successfully';
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

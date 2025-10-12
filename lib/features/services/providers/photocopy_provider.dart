@@ -2,24 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/services/firebase_service.dart';
-import '../../../core/constants/app_constants.dart';
 import '../models/photocopy_models.dart';
 
 class PhotocopyProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
-  
+
   List<PhotocopyExpense> _expenses = [];
   List<PhotocopyIncome> _incomes = [];
   PhotocopyStats _stats = PhotocopyStats.empty();
   bool _isLoading = false;
   String? _errorMessage;
-  
+  bool _isDataLoaded = false;  // Cache flag to avoid reloading
+
   // Getters
   List<PhotocopyExpense> get expenses => _expenses;
   List<PhotocopyIncome> get incomes => _incomes;
   PhotocopyStats get stats => _stats;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isDataLoaded => _isDataLoaded;
   
   void _setLoading(bool loading) {
     _isLoading = loading;
@@ -35,31 +36,64 @@ class PhotocopyProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
   }
+
+  // Force refresh data
+  Future<void> refreshData() async {
+    await loadAllData(forceRefresh: true);
+  }
   
-  // Load all data
-  Future<void> loadAllData() async {
+  // Load all data (with caching)
+  Future<void> loadAllData({bool forceRefresh = false}) async {
+    // Skip if already loaded unless force refresh
+    if (_isDataLoaded && !forceRefresh) {
+      return;
+    }
+
     await Future.wait([
       loadExpenses(),
       loadIncomes(),
     ]);
     _calculateStats();
+    _isDataLoaded = true;
   }
   
-  // Load expenses
+  // Load expenses (from month/year organization)
   Future<void> loadExpenses() async {
     try {
       _setLoading(true);
       _setError(null);
-      
-      final querySnapshot = await _firebaseService.firestore
-          .collection(AppConstants.photocopyExpensesCollection)
-          .orderBy('date', descending: true)
-          .get();
-      
-      _expenses = querySnapshot.docs
-          .map((doc) => PhotocopyExpense.fromFirestore(doc))
-          .toList();
-      
+
+      List<PhotocopyExpense> allExpenses = [];
+      final now = DateTime.now();
+
+      // Load last 12 months of expense data
+      for (int i = 0; i < 12; i++) {
+        final date = DateTime(now.year, now.month - i, 1);
+        final monthYear = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+        try {
+          final querySnapshot = await _firebaseService.firestore
+              .collection('services')
+              .doc('photocopy')
+              .collection(monthYear)
+              .doc('expenses')
+              .collection('transactions')
+              .orderBy('date', descending: true)
+              .get();
+
+          final monthExpenses = querySnapshot.docs
+              .map((doc) => PhotocopyExpense.fromFirestore(doc))
+              .toList();
+
+          allExpenses.addAll(monthExpenses);
+        } catch (e) {
+          // If month doesn't exist, continue to next month
+          continue;
+        }
+      }
+
+      _expenses = allExpenses;
+
     } catch (e) {
       _setError('Failed to load expenses: $e');
     } finally {
@@ -67,21 +101,43 @@ class PhotocopyProvider extends ChangeNotifier {
     }
   }
   
-  // Load incomes
+  // Load incomes (from month/year organization)
   Future<void> loadIncomes() async {
     try {
       _setLoading(true);
       _setError(null);
-      
-      final querySnapshot = await _firebaseService.firestore
-          .collection(AppConstants.photocopyIncomeCollection)
-          .orderBy('date', descending: true)
-          .get();
-      
-      _incomes = querySnapshot.docs
-          .map((doc) => PhotocopyIncome.fromFirestore(doc))
-          .toList();
-      
+
+      List<PhotocopyIncome> allIncomes = [];
+      final now = DateTime.now();
+
+      // Load last 12 months of income data
+      for (int i = 0; i < 12; i++) {
+        final date = DateTime(now.year, now.month - i, 1);
+        final monthYear = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+        try {
+          final querySnapshot = await _firebaseService.firestore
+              .collection('services')
+              .doc('photocopy')
+              .collection(monthYear)
+              .doc('income')
+              .collection('transactions')
+              .orderBy('date', descending: true)
+              .get();
+
+          final monthIncomes = querySnapshot.docs
+              .map((doc) => PhotocopyIncome.fromFirestore(doc))
+              .toList();
+
+          allIncomes.addAll(monthIncomes);
+        } catch (e) {
+          // If month doesn't exist, continue to next month
+          continue;
+        }
+      }
+
+      _incomes = allIncomes;
+
     } catch (e) {
       _setError('Failed to load incomes: $e');
     } finally {
@@ -99,7 +155,7 @@ class PhotocopyProvider extends ChangeNotifier {
       final monthYear = '${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}';
 
       // Add expense to month/year collection
-      await _firebaseService.firestore
+      final docRef = await _firebaseService.firestore
           .collection('services')
           .doc('photocopy')
           .collection(monthYear)
@@ -110,8 +166,18 @@ class PhotocopyProvider extends ChangeNotifier {
       // Update monthly metadata
       await _updateMonthlyExpenseMetadata(monthYear, expense);
 
-      await loadExpenses();
+      // Add to local list instead of reloading
+      final newExpense = PhotocopyExpense(
+        id: docRef.id,
+        type: expense.type,
+        amount: expense.amount,
+        description: expense.description,
+        date: expense.date,
+        createdAt: expense.createdAt,
+      );
+      _expenses.insert(0, newExpense);
       _calculateStats();
+      notifyListeners();
       return true;
     } catch (e) {
       _setError('Failed to add expense: $e');
@@ -131,7 +197,7 @@ class PhotocopyProvider extends ChangeNotifier {
       final monthYear = '${incomeDate.year}-${incomeDate.month.toString().padLeft(2, '0')}';
 
       // Add income to month/year collection
-      await _firebaseService.firestore
+      final docRef = await _firebaseService.firestore
           .collection('services')
           .doc('photocopy')
           .collection(monthYear)
@@ -142,8 +208,21 @@ class PhotocopyProvider extends ChangeNotifier {
       // Update monthly metadata
       await _updateMonthlyIncomeMetadata(monthYear, income);
 
-      await loadIncomes();
+      // Add to local list instead of reloading
+      final newIncome = PhotocopyIncome(
+        id: docRef.id,
+        copies: income.copies,
+        ratePerCopy: income.ratePerCopy,
+        totalAmount: income.totalAmount,
+        customerName: income.customerName,
+        notes: income.notes,
+        date: income.date,
+        createdAt: income.createdAt,
+        incomeType: income.incomeType,
+      );
+      _incomes.insert(0, newIncome);
       _calculateStats();
+      notifyListeners();
       return true;
     } catch (e) {
       _setError('Failed to add income: $e');
@@ -158,14 +237,26 @@ class PhotocopyProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _setError(null);
-      
+
+      final expenseDate = expense.date;
+      final monthYear = '${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}';
+
       await _firebaseService.firestore
-          .collection(AppConstants.photocopyExpensesCollection)
+          .collection('services')
+          .doc('photocopy')
+          .collection(monthYear)
+          .doc('expenses')
+          .collection('transactions')
           .doc(expense.id)
           .update(expense.toFirestore());
-      
-      await loadExpenses();
-      _calculateStats();
+
+      // Update local list instead of reloading
+      final index = _expenses.indexWhere((e) => e.id == expense.id);
+      if (index != -1) {
+        _expenses[index] = expense;
+        _calculateStats();
+        notifyListeners();
+      }
       return true;
     } catch (e) {
       _setError('Failed to update expense: $e');
@@ -180,14 +271,26 @@ class PhotocopyProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _setError(null);
-      
+
+      final incomeDate = income.date;
+      final monthYear = '${incomeDate.year}-${incomeDate.month.toString().padLeft(2, '0')}';
+
       await _firebaseService.firestore
-          .collection(AppConstants.photocopyIncomeCollection)
+          .collection('services')
+          .doc('photocopy')
+          .collection(monthYear)
+          .doc('income')
+          .collection('transactions')
           .doc(income.id)
           .update(income.toFirestore());
-      
-      await loadIncomes();
-      _calculateStats();
+
+      // Update local list instead of reloading
+      final index = _incomes.indexWhere((i) => i.id == income.id);
+      if (index != -1) {
+        _incomes[index] = income;
+        _calculateStats();
+        notifyListeners();
+      }
       return true;
     } catch (e) {
       _setError('Failed to update income: $e');
@@ -202,14 +305,25 @@ class PhotocopyProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _setError(null);
-      
+
+      // Find the expense in the list to get its date
+      final expense = _expenses.firstWhere((e) => e.id == expenseId);
+      final expenseDate = expense.date;
+      final monthYear = '${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}';
+
       await _firebaseService.firestore
-          .collection(AppConstants.photocopyExpensesCollection)
+          .collection('services')
+          .doc('photocopy')
+          .collection(monthYear)
+          .doc('expenses')
+          .collection('transactions')
           .doc(expenseId)
           .delete();
-      
-      await loadExpenses();
+
+      // Remove from local list instead of reloading
+      _expenses.removeWhere((e) => e.id == expenseId);
       _calculateStats();
+      notifyListeners();
       return true;
     } catch (e) {
       _setError('Failed to delete expense: $e');
@@ -218,20 +332,31 @@ class PhotocopyProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
-  
+
   // Delete income
   Future<bool> deleteIncome(String incomeId) async {
     try {
       _setLoading(true);
       _setError(null);
-      
+
+      // Find the income in the list to get its date
+      final income = _incomes.firstWhere((i) => i.id == incomeId);
+      final incomeDate = income.date;
+      final monthYear = '${incomeDate.year}-${incomeDate.month.toString().padLeft(2, '0')}';
+
       await _firebaseService.firestore
-          .collection(AppConstants.photocopyIncomeCollection)
+          .collection('services')
+          .doc('photocopy')
+          .collection(monthYear)
+          .doc('income')
+          .collection('transactions')
           .doc(incomeId)
           .delete();
-      
-      await loadIncomes();
+
+      // Remove from local list instead of reloading
+      _incomes.removeWhere((i) => i.id == incomeId);
       _calculateStats();
+      notifyListeners();
       return true;
     } catch (e) {
       _setError('Failed to delete income: $e');

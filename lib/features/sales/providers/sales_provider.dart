@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/services/firebase_service.dart';
-import '../../../core/constants/app_constants.dart';
 import '../models/sale_model.dart';
 
 class SalesProvider extends ChangeNotifier {
@@ -196,17 +195,52 @@ class SalesProvider extends ChangeNotifier {
     }
   }
   
+  // Update sale
+  Future<bool> updateSale(Sale sale) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final saleDate = sale.saleDate;
+      final monthYear = '${saleDate.year}-${saleDate.month.toString().padLeft(2, '0')}';
+
+      // Update sale in month/year collection
+      await _firebaseService.firestore
+          .collection('sales')
+          .doc(monthYear)
+          .collection('transactions')
+          .doc(sale.id)
+          .update(sale.toFirestore());
+
+      await loadSales(); // Refresh the list
+      return true;
+    } catch (e) {
+      _setError('Failed to update sale: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // Delete sale
   Future<bool> deleteSale(String saleId) async {
     try {
       _setLoading(true);
       _setError(null);
-      
+
+      // Find the sale in the current sales list to get its date
+      final sale = _sales.firstWhere((s) => s.id == saleId);
+      final saleDate = sale.saleDate;
+      final monthYear = '${saleDate.year}-${saleDate.month.toString().padLeft(2, '0')}';
+
+      // Delete from the correct month/year collection
       await _firebaseService.firestore
-          .collection(AppConstants.salesCollection)
+          .collection('sales')
+          .doc(monthYear)
+          .collection('transactions')
           .doc(saleId)
           .delete();
-      
+
       await loadSales(); // Refresh the list
       return true;
     } catch (e) {
